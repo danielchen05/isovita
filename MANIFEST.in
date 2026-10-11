@@ -1,0 +1,7 @@
+include README.md LICENSE pyproject.toml .gitignore
+recursive-include src *.py
+recursive-include tests *.py *.json *.csv
+recursive-include examples *.ipynb
+recursive-include .github *.yml
+global-exclude *.py[cod]
+prune tests/__pycache__

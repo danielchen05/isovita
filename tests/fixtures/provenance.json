@@ -1,0 +1,23 @@
+{
+  "source_sha256": {
+    "Pasted text (4)(2).txt": "7b846621755d705ff7e939eef237cdbb476ddc860c3da14638e1223edd423408",
+    "Pasted text (2)(8).txt": "f6900c51ec49218e9ddb90e496b44f96aa3d632b571c9f152b0384a2f44f06be",
+    "Pasted text (3)(5).txt": "ac7ed34e7d9a3d1d9f6685b586c5048ee9e237bee413d088109ac26f42ad23d9"
+  },
+  "seed": 17,
+  "n_permutations": 39,
+  "batch_size": 7,
+  "generated_before_refactor": true,
+  "window_reference": {
+    "original_sha256": "f6900c51ec49218e9ddb90e496b44f96aa3d632b571c9f152b0384a2f44f06be",
+    "edges": [
+      0,
+      42.5,
+      85
+    ],
+    "n_permutations": 39,
+    "random_seed": 17,
+    "batch_size": 7,
+    "source": "Unmodified supplied core script; actual IsoPlex"
+  }
+}
