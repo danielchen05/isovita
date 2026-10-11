@@ -134,9 +134,17 @@ def _build_gene_row_index(expression_df: pd.DataFrame) -> Dict[str, np.ndarray]:
 def _orient_pc1(pc1: np.ndarray) -> np.ndarray:
     """Give the SVD loading vector a deterministic sign."""
     v = np.asarray(pc1, dtype=float).copy()
-    idx = int(np.argmax(np.abs(v)))
-    if v[idx] < 0:
-        v *= -1.0
+
+    if len(v) == 2:
+        # Two-isoform CLR loadings have equal absolute magnitude.
+        # Always orient the first loading positively.
+        if v[0] < 0:
+            v *= -1.0
+    else:
+        idx = int(np.argmax(np.abs(v)))
+        if v[idx] < 0:
+            v *= -1.0
+
     norm = np.linalg.norm(v)
     if norm == 0:
         raise ValueError("PC1 has zero norm.")
@@ -311,9 +319,13 @@ def _find_sparse_balance_assignments_batch(
 
     V = V / norms[:, None]
 
-    # Match _orient_pc1(): orient by the loading with largest absolute magnitude.
-    pivot = np.argmax(np.abs(V), axis=1)
-    flip = V[np.arange(batch), pivot] < 0
+    # Match the scalar _orient_pc1() sign convention.
+    if k == 2:
+        flip = V[:, 0] < 0
+    else:
+        pivot = np.argmax(np.abs(V), axis=1)
+        flip = V[np.arange(batch), pivot] < 0
+
     if np.any(flip):
         V[flip] *= -1.0
 

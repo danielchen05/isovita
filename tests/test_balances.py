@@ -59,6 +59,34 @@ def test_batch_optimizer_and_feature_match_scalar(k):
         np.testing.assert_allclose(features[i], b.compute_balance_feature(x, a[i]))
 
 
+@pytest.mark.parametrize(
+    "v",
+    [
+        np.array([1.0, -1.0]),
+        np.array([-1.0, 1.0]),
+        np.array([0.70710678, -0.70710678]),
+        np.array([-0.70710678, 0.70710678]),
+        np.array([0.70710678, -(0.70710678 + 1e-14)]),
+        np.array([-(0.70710678 + 1e-14), 0.70710678]),
+    ],
+)
+def test_two_isoform_orientation_is_deterministic(v):
+    oriented = b._orient_pc1(v)
+
+    assert oriented[0] > 0
+    np.testing.assert_allclose(oriented, b._orient_pc1(-v))
+
+    scalar = b.find_sparse_balance(oriented)["assignment"]
+    batch = b._find_sparse_balance_assignments_batch(
+        np.array([v, -v]),
+        near_optimal_cosine_tolerance=0.01,
+    )
+
+    np.testing.assert_array_equal(batch[0], scalar)
+    np.testing.assert_array_equal(batch[1], scalar)
+
+
+
 def test_composition_order_and_index_cache(inputs):
     expr, meta, samples = validate_core_inputs(*inputs)
     tx = list(expr.loc[expr.gene_id.eq("smooth"), "transcript_id"])[::-1]
