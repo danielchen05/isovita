@@ -27,7 +27,7 @@ dependencies = [
   "scipy>=1.11",
   "patsy>=0.5.6",
   "statsmodels>=0.14",
-  "isoplex>=0.1.0,<0.2",
+  "isoplex>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -56,3 +56,8 @@ select = ["F"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/isovita/__init__.py" = ["F401"]
+
+[project.urls]
+Homepage = "https://github.com/danielchen05/isovita"
+Repository = "https://github.com/danielchen05/isovita"
+Issues = "https://github.com/danielchen05/isovita/issues"
