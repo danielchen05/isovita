@@ -7,7 +7,7 @@
     "metadata": {
       "__frame__": true,
       "columns": [
-        "age"
+        "time"
       ],
       "index": [
         "S000",
@@ -634,7 +634,7 @@
         ]
       ]
     },
-    "isoplex_expression_df": {
+    "filtered_expression_df": {
       "__frame__": true,
       "columns": [
         "gene_id",
@@ -1092,7 +1092,7 @@
         ]
       ]
     },
-    "isoplex_filter_summary": {
+    "filter_summary": {
       "__frame__": true,
       "columns": [
         "step",
@@ -9630,7 +9630,7 @@
         "n",
         "tested",
         "n_candidate_cuts",
-        "best_change_age",
+        "best_change_time",
         "n_left",
         "n_right",
         "left_mean",
@@ -9682,7 +9682,7 @@
           0.025,
           0.025,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.037500000000000006,
           true
         ],
@@ -9708,7 +9708,7 @@
           0.025,
           0.025,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.037500000000000006,
           true
         ],
@@ -9734,7 +9734,7 @@
           0.65,
           0.65,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.65,
           false
         ]
@@ -9787,7 +9787,7 @@
           3.723838164240717e-13,
           0.025,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.037500000000000006,
           true,
           3.0144559137209876
@@ -9808,7 +9808,7 @@
           3.3075328292090145e-26,
           0.025,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.037500000000000006,
           true,
           2.6920363263975404
@@ -9829,7 +9829,7 @@
           0.6457864125265328,
           0.85,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.85,
           false,
           0.03341679749708995
@@ -9881,7 +9881,7 @@
         "discrete_step_r_squared",
         "discrete_step_effect",
         "discrete_abs_step_effect",
-        "discrete_change_age",
+        "discrete_change_time",
         "discrete_left_mean",
         "discrete_right_mean",
         "discrete_n_left",
@@ -10081,7 +10081,7 @@
         "discrete_step_r_squared",
         "discrete_step_effect",
         "discrete_abs_step_effect",
-        "discrete_change_age",
+        "discrete_change_time",
         "discrete_left_mean",
         "discrete_right_mean",
         "discrete_n_left",
@@ -10233,7 +10233,7 @@
         "discrete_step_r_squared",
         "discrete_step_effect",
         "discrete_abs_step_effect",
-        "discrete_change_age",
+        "discrete_change_time",
         "discrete_left_mean",
         "discrete_right_mean",
         "discrete_n_left",
@@ -10402,7 +10402,7 @@
         "discrete_step_r_squared",
         "discrete_step_effect",
         "discrete_abs_step_effect",
-        "discrete_change_age",
+        "discrete_change_time",
         "discrete_left_mean",
         "discrete_right_mean",
         "discrete_n_left",
@@ -10526,7 +10526,8 @@
           0.037500000000000006
         ]
       ]
-    }
+    },
+    "filtering_method": "isoplex"
   },
   "discrete": {
     "selected_branches": [
@@ -10535,7 +10536,7 @@
     "metadata": {
       "__frame__": true,
       "columns": [
-        "age"
+        "time"
       ],
       "index": [
         "S000",
@@ -11162,7 +11163,7 @@
         ]
       ]
     },
-    "isoplex_expression_df": {
+    "filtered_expression_df": {
       "__frame__": true,
       "columns": [
         "gene_id",
@@ -11620,7 +11621,7 @@
         ]
       ]
     },
-    "isoplex_filter_summary": {
+    "filter_summary": {
       "__frame__": true,
       "columns": [
         "step",
@@ -20158,7 +20159,7 @@
         "n",
         "tested",
         "n_candidate_cuts",
-        "best_change_age",
+        "best_change_time",
         "n_left",
         "n_right",
         "left_mean",
@@ -20210,7 +20211,7 @@
           0.025,
           0.025,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.037500000000000006,
           true
         ],
@@ -20236,7 +20237,7 @@
           0.025,
           0.025,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.037500000000000006,
           true
         ],
@@ -20262,7 +20263,7 @@
           0.65,
           0.65,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.65,
           false
         ]
@@ -20321,7 +20322,7 @@
         "discrete_step_r_squared",
         "discrete_step_effect",
         "discrete_abs_step_effect",
-        "discrete_change_age",
+        "discrete_change_time",
         "discrete_left_mean",
         "discrete_right_mean",
         "discrete_n_left",
@@ -20485,7 +20486,7 @@
         "discrete_step_r_squared",
         "discrete_step_effect",
         "discrete_abs_step_effect",
-        "discrete_change_age",
+        "discrete_change_time",
         "discrete_left_mean",
         "discrete_right_mean",
         "discrete_n_left",
@@ -20610,7 +20611,7 @@
         "discrete_step_r_squared",
         "discrete_step_effect",
         "discrete_abs_step_effect",
-        "discrete_change_age",
+        "discrete_change_time",
         "discrete_left_mean",
         "discrete_right_mean",
         "discrete_n_left",
@@ -20672,7 +20673,7 @@
         "discrete_step_r_squared",
         "discrete_step_effect",
         "discrete_abs_step_effect",
-        "discrete_change_age",
+        "discrete_change_time",
         "discrete_left_mean",
         "discrete_right_mean",
         "discrete_n_left",
@@ -20769,7 +20770,8 @@
           0.037500000000000006
         ]
       ]
-    }
+    },
+    "filtering_method": "isoplex"
   },
   "continuous": {
     "selected_branches": [
@@ -20778,7 +20780,7 @@
     "metadata": {
       "__frame__": true,
       "columns": [
-        "age"
+        "time"
       ],
       "index": [
         "S000",
@@ -21405,7 +21407,7 @@
         ]
       ]
     },
-    "isoplex_expression_df": {
+    "filtered_expression_df": {
       "__frame__": true,
       "columns": [
         "gene_id",
@@ -21863,7 +21865,7 @@
         ]
       ]
     },
-    "isoplex_filter_summary": {
+    "filter_summary": {
       "__frame__": true,
       "columns": [
         "step",
@@ -30450,7 +30452,7 @@
           3.723838164240717e-13,
           0.025,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.037500000000000006,
           true,
           3.0144559137209876
@@ -30471,7 +30473,7 @@
           3.3075328292090145e-26,
           0.025,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.037500000000000006,
           true,
           2.6920363263975404
@@ -30492,7 +30494,7 @@
           0.6457864125265328,
           0.85,
           39,
-          "full_pipeline_age_permutation",
+          "full_pipeline_time_permutation",
           0.85,
           false,
           0.03341679749708995
@@ -30959,7 +30961,8 @@
           0.037500000000000006
         ]
       ]
-    }
+    },
+    "filtering_method": "isoplex"
   },
   "preprocessing": {
     "tpm": {
@@ -31424,7 +31427,7 @@
       "__frame__": true,
       "columns": [
         "sample_id",
-        "age"
+        "time"
       ],
       "index": [
         0,
@@ -31663,15 +31666,15 @@
           3.0
         ],
         [
-          "age_min",
+          "time_min",
           0.7472175695766226
         ],
         [
-          "age_max",
+          "time_max",
           83.84457754543112
         ],
         [
-          "n_negative_age",
+          "n_negative_time",
           0.0
         ]
       ]
@@ -32130,7 +32133,7 @@
         "S038",
         "S039"
       ],
-      "ages": [
+      "times": [
         0.7472175695766226,
         3.0702680048446123,
         5.723026177035948,
@@ -32172,7 +32175,7 @@
         82.12912195358464,
         83.84457754543112
       ],
-      "age_grid": [
+      "time_grid": [
         0.7472175695766226,
         1.5865848420600015,
         2.4259521145433802,
@@ -33890,7 +33893,7 @@
         "S038",
         "S039"
       ],
-      "ages": [
+      "times": [
         0.7472175695766226,
         3.0702680048446123,
         5.723026177035948,
@@ -33932,7 +33935,7 @@
         82.12912195358464,
         83.84457754543112
       ],
-      "age_grid": [
+      "time_grid": [
         0.7472175695766226,
         1.5865848420600015,
         2.4259521145433802,
@@ -35694,7 +35697,7 @@
         "S038",
         "S039"
       ],
-      "ages": [
+      "times": [
         0.7472175695766226,
         3.0702680048446123,
         5.723026177035948,
@@ -35736,7 +35739,7 @@
         82.12912195358464,
         83.84457754543112
       ],
-      "age_grid": [
+      "time_grid": [
         0.7472175695766226,
         1.5865848420600015,
         2.4259521145433802,

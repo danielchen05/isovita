@@ -29,7 +29,7 @@ from .results import (
 )
 from .splines import (
     _array_cache_token,
-    _get_cached_fixed_age_spline_workspace,
+    _get_cached_fixed_time_spline_workspace,
 )
 from .statistics import (
     _feature_correlations,
@@ -60,24 +60,24 @@ def _cached_permutation_indices(
 
 
 def _get_cached_permutation_orders(
-    ages: np.ndarray,
+    times: np.ndarray,
     *,
     n_permutations: int,
     random_seed: int,
     cache: Optional[Dict[Tuple[object, ...], np.ndarray]] = None,
 ) -> np.ndarray:
-    """Return stable sort orders for all synchronized age permutations.
+    """Return stable sort orders for all synchronized time permutations.
 
-    Many genes share the same sample/age vector. Computing these B age sorts
-    once per unique age vector avoids repeating one of the hottest pieces of
+    Many genes share the same sample/time vector. Computing these B time sorts
+    once per unique time vector avoids repeating one of the hottest pieces of
     Python/NumPy work for every gene.
     """
-    ages = np.asarray(ages, dtype=float)
+    times = np.asarray(times, dtype=float)
     key = (
         "perm_orders",
         int(n_permutations),
         int(random_seed),
-        *_array_cache_token(ages),
+        *_array_cache_token(times),
     )
 
     if cache is not None:
@@ -86,14 +86,14 @@ def _get_cached_permutation_orders(
             return cached
 
     perm_idx = _cached_permutation_indices(
-        len(ages),
+        len(times),
         int(n_permutations),
         int(random_seed),
     )
 
-    permuted_ages = ages[perm_idx]
+    permuted_times = times[perm_idx]
     orders = np.argsort(
-        permuted_ages,
+        permuted_times,
         axis=1,
         kind="mergesort",
     ).astype(np.int32, copy=False)
@@ -170,9 +170,9 @@ def _run_selection_aware_gene_tests(
             "Example: WindowConfig(edges=(20, 40, 60, 85))."
         )
 
-    ages = np.asarray(prepared["ages"], dtype=float)
+    times = np.asarray(prepared["times"], dtype=float)
     observed_feature = np.asarray(observed_feature, dtype=float)
-    if len(observed_feature) != len(ages):
+    if len(observed_feature) != len(times):
         raise ValueError(f"Observed feature for {gene_id} does not align with prepared samples.")
 
     result: Dict[str, object] = {
@@ -185,7 +185,7 @@ def _run_selection_aware_gene_tests(
     # ------------------------------------------------------------------
     if "discrete" in branches:
         discrete_obs = _fit_discrete_step_statistic(
-            ages,
+            times,
             observed_feature,
             config=discrete_config,
         )
@@ -194,12 +194,12 @@ def _run_selection_aware_gene_tests(
 
     if "continuous" in branches:
         continuous_obs = _fit_nested_spline_test(
-            ages,
+            times,
             observed_feature,
             spline_df=continuous_config.spline_df,
             spline_degree=continuous_config.spline_degree,
         )
-        continuous_obs.update(_feature_correlations(ages, observed_feature))
+        continuous_obs.update(_feature_correlations(times, observed_feature))
         continuous_obs["gene_id"] = gene_id
         continuous_obs["tested"] = bool(
             continuous_obs["n"] >= continuous_config.min_samples
@@ -223,16 +223,16 @@ def _run_selection_aware_gene_tests(
         ):
             include_upper = window_index == n_windows - 1
             mask = _window_mask(
-                ages,
+                times,
                 lower,
                 upper,
                 include_upper=include_upper,
             )
-            ages_w = ages[mask]
+            times_w = times[mask]
             feature_w = observed_feature[mask]
 
             discrete_obs = _fit_discrete_step_statistic(
-                ages_w,
+                times_w,
                 feature_w,
                 config=discrete_config,
             )
@@ -248,12 +248,12 @@ def _run_selection_aware_gene_tests(
             result["localized_discrete"].append(discrete_obs)
 
             continuous_obs = _fit_nested_spline_test(
-                ages_w,
+                times_w,
                 feature_w,
                 spline_df=continuous_config.spline_df,
                 spline_degree=continuous_config.spline_degree,
             )
-            continuous_obs.update(_feature_correlations(ages_w, feature_w))
+            continuous_obs.update(_feature_correlations(times_w, feature_w))
             continuous_obs.update(
                 {
                     "gene_id": gene_id,
@@ -282,9 +282,9 @@ def _run_selection_aware_gene_tests(
             )
 
     B = int(inference_config.n_permutations)
-    global_inference_label = "full_pipeline_age_permutation"
-    window_discrete_label = "full_pipeline_age_permutation_windowed_discrete"
-    window_continuous_label = "full_pipeline_age_permutation_windowed_continuous"
+    global_inference_label = "full_pipeline_time_permutation"
+    window_discrete_label = "full_pipeline_time_permutation_windowed_discrete"
+    window_continuous_label = "full_pipeline_time_permutation_windowed_continuous"
 
     any_tested = False
     if "discrete" in branches:
@@ -324,15 +324,15 @@ def _run_selection_aware_gene_tests(
         return result
 
     # ------------------------------------------------------------------
-    # Age-only reusable objects
+    # Time-only reusable objects
     # ------------------------------------------------------------------
-    reference_order = np.argsort(ages, kind="mergesort")
-    reference_ages_sorted = ages[reference_order]
+    reference_order = np.argsort(times, kind="mergesort")
+    reference_times_sorted = times[reference_order]
 
     continuous_workspace = None
     if "continuous" in branches and bool(result["continuous"]["tested"]):
-        continuous_workspace = _get_cached_fixed_age_spline_workspace(
-            ages,
+        continuous_workspace = _get_cached_fixed_time_spline_workspace(
+            times,
             spline_df=continuous_config.spline_df,
             spline_degree=continuous_config.spline_degree,
             cache=spline_workspace_cache,
@@ -341,7 +341,7 @@ def _run_selection_aware_gene_tests(
     discrete_cut_positions = None
     if "discrete" in branches and bool(result["discrete"]["tested"]):
         discrete_cut_positions, _ = _valid_change_point_positions(
-            reference_ages_sorted,
+            reference_times_sorted,
             min_samples_side=discrete_config.min_samples_side,
             min_fraction_side=discrete_config.min_fraction_side,
         )
@@ -354,25 +354,25 @@ def _run_selection_aware_gene_tests(
         for spec in window_specs:
             i = int(spec["window_index"])
             positions = _window_sorted_positions(
-                reference_ages_sorted,
+                reference_times_sorted,
                 float(spec["lower"]),
                 float(spec["upper"]),
                 include_upper=bool(spec["include_upper"]),
             )
             localized_positions[i] = positions
-            ages_w_sorted = reference_ages_sorted[positions]
+            times_w_sorted = reference_times_sorted[positions]
 
             if bool(result["localized_discrete"][i]["tested"]):
                 cuts, _ = _valid_change_point_positions(
-                    ages_w_sorted,
+                    times_w_sorted,
                     min_samples_side=discrete_config.min_samples_side,
                     min_fraction_side=discrete_config.min_fraction_side,
                 )
                 localized_discrete_cuts[i] = cuts
 
             if bool(result["localized_continuous"][i]["tested"]):
-                localized_continuous_workspaces[i] = _get_cached_fixed_age_spline_workspace(
-                    ages_w_sorted,
+                localized_continuous_workspaces[i] = _get_cached_fixed_time_spline_workspace(
+                    times_w_sorted,
                     spline_df=continuous_config.spline_df,
                     spline_degree=continuous_config.spline_degree,
                     cache=spline_workspace_cache,
@@ -393,20 +393,20 @@ def _run_selection_aware_gene_tests(
             axis=1,
             keepdims=True,
         )
-        balance_workspace = _get_cached_fixed_age_spline_workspace(
-            ages,
+        balance_workspace = _get_cached_fixed_time_spline_workspace(
+            times,
             spline_df=balance_config.spline_df,
             spline_degree=balance_config.spline_degree,
-            age_grid_size=balance_config.age_grid_size,
+            time_grid_size=balance_config.time_grid_size,
             cache=spline_workspace_cache,
         )
 
     batch_size = min(int(inference_config.batch_size), B)
     permutation_orders = np.asarray(permutation_orders, dtype=np.int32)
-    if permutation_orders.shape != (B, len(ages)):
+    if permutation_orders.shape != (B, len(times)):
         raise ValueError(
             "Precomputed permutation_orders have the wrong shape for "
-            f"{gene_id}: expected {(B, len(ages))}, "
+            f"{gene_id}: expected {(B, len(times))}, "
             f"got {permutation_orders.shape}."
         )
 
@@ -743,7 +743,7 @@ def run_selection_aware_temporal_tests(
         observed_feature = feature_row.loc[samples].to_numpy(dtype=float)
 
         permutation_orders = _get_cached_permutation_orders(
-            np.asarray(prepared["ages"], dtype=float),
+            np.asarray(prepared["times"], dtype=float),
             n_permutations=int(inference_config.n_permutations),
             random_seed=int(inference_config.random_seed),
             cache=permutation_order_cache,
@@ -835,32 +835,32 @@ def run_selection_aware_temporal_tests(
 
 
 def _window_mask(
-    ages: np.ndarray,
+    times: np.ndarray,
     lower: float,
     upper: float,
     *,
     include_upper: bool,
 ) -> np.ndarray:
-    """Return the deterministic sample mask for one configured age interval."""
-    ages = np.asarray(ages, dtype=float)
+    """Return the deterministic sample mask for one configured time interval."""
+    times = np.asarray(times, dtype=float)
     if include_upper:
-        return (ages >= float(lower)) & (ages <= float(upper))
-    return (ages >= float(lower)) & (ages < float(upper))
+        return (times >= float(lower)) & (times <= float(upper))
+    return (times >= float(lower)) & (times < float(upper))
 
 
 def _window_sorted_positions(
-    ages_sorted: np.ndarray,
+    times_sorted: np.ndarray,
     lower: float,
     upper: float,
     *,
     include_upper: bool,
 ) -> np.ndarray:
-    """Return positions for one interval in an already age-sorted vector."""
-    ages_sorted = np.asarray(ages_sorted, dtype=float)
-    left = int(np.searchsorted(ages_sorted, float(lower), side="left"))
+    """Return positions for one interval in an already time-sorted vector."""
+    times_sorted = np.asarray(times_sorted, dtype=float)
+    left = int(np.searchsorted(times_sorted, float(lower), side="left"))
     right = int(
         np.searchsorted(
-            ages_sorted,
+            times_sorted,
             float(upper),
             side="right" if include_upper else "left",
         )

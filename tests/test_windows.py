@@ -40,7 +40,9 @@ def test_original_window_pipeline_all_fields(inputs, window_config, branches):
     )
     assert [f.name for f in fields(actual)] == list(expected)
     for name, value in expected.items():
-        if name == "selected_branches":
+        if name == "filtering_method":
+            assert actual.filtering_method == value
+        elif name == "selected_branches":
             assert list(actual.selected_branches) == value
         else:
             table = getattr(actual, name)
@@ -60,15 +62,15 @@ def test_invalid_window_edges(edges):
 
 
 @pytest.mark.parametrize("include_upper,expected", [(False, [1, 2, 3]), (True, [1, 2, 3, 4, 5])])
-def test_window_boundaries_tied_ages_and_sorted_positions(include_upper, expected):
-    age = np.array([-1, 0, 0, 1, 2, 2, 3])
-    mask = p._window_mask(age, 0, 2, include_upper=include_upper)
+def test_window_boundaries_tied_times_and_sorted_positions(include_upper, expected):
+    time = np.array([-1, 0, 0, 1, 2, 2, 3])
+    mask = p._window_mask(time, 0, 2, include_upper=include_upper)
     np.testing.assert_array_equal(np.flatnonzero(mask), expected)
     np.testing.assert_array_equal(
-        p._window_sorted_positions(age, 0, 2, include_upper=include_upper), expected
+        p._window_sorted_positions(time, 0, 2, include_upper=include_upper), expected
     )
-    a = p._window_mask(age, 0, 2, include_upper=False)
-    z = p._window_mask(age, 2, 3, include_upper=True)
+    a = p._window_mask(time, 0, 2, include_upper=False)
+    z = p._window_mask(time, 2, 3, include_upper=True)
     assert not np.any(a & z)
     np.testing.assert_array_equal(np.flatnonzero(a | z), np.arange(1, 7))
 
@@ -104,7 +106,7 @@ def test_window_results_do_not_change_global_results_or_feature(window_result, r
         assert table.n.eq(20).all()
         assert table.n_permutations.eq(39).all()
         assert table.inference_method.str.startswith(
-            "full_pipeline_age_permutation_windowed_"
+            "full_pipeline_time_permutation_windowed_"
         ).all()
 
 
@@ -206,12 +208,12 @@ def test_window_permutations_against_scalar_global_relearning(inputs, config, ge
     prepared = b.make_effective_isoform_composition(
         gene, expr, tx, samples, meta, pseudocount=1e-8, min_samples=20
     )
-    age = prepared["ages"]
+    time = prepared["times"]
     clr = b.clr_transform(prepared["composition"])
     _, _, observed = b.fit_gene_balance(gene, expr, tx, samples, meta)
     windows = iv.WindowConfig((0, 42.5, 85))
-    idx = p._cached_permutation_indices(len(age), 39, 17)
-    orders = p._get_cached_permutation_orders(age, n_permutations=39, random_seed=17)
+    idx = p._cached_permutation_indices(len(time), 39, 17)
+    orders = p._get_cached_permutation_orders(time, n_permutations=39, random_seed=17)
     actual = p._run_selection_aware_gene_tests(
         gene,
         prepared,
@@ -228,29 +230,29 @@ def test_window_permutations_against_scalar_global_relearning(inputs, config, ge
     null_d = [[], []]
     null_c = [[], []]
     for perm in idx:
-        perm_age = age[perm]
-        workspace = splines._build_observed_age_spline_workspace(
-            perm_age, spline_df=4, spline_degree=3, age_grid_size=100
+        perm_time = time[perm]
+        workspace = splines._build_observed_time_spline_workspace(
+            perm_time, spline_df=4, spline_degree=3, time_grid_size=100
         )
-        # Relearn on the complete permuted age vector, before choosing window samples.
+        # Relearn on the complete permuted time vector, before choosing window samples.
         learned = b._learn_balance_from_prepared(
             prepared,
-            perm_age,
+            perm_time,
             config=config.balance,
             spline_workspace=workspace,
             clr_values=clr,
             sort_order=workspace["order"],
         )
         for i, (lo, hi) in enumerate(windows.intervals):
-            mask = (perm_age >= lo) & ((perm_age <= hi) if i == 1 else (perm_age < hi))
+            mask = (perm_time >= lo) & ((perm_time <= hi) if i == 1 else (perm_time < hi))
             null_d[i].append(
                 s._fit_discrete_step_statistic(
-                    perm_age[mask], learned["feature"][mask], config=config.discrete
+                    perm_time[mask], learned["feature"][mask], config=config.discrete
                 )["max_f_stat"]
             )
             null_c[i].append(
                 s._fit_nested_spline_test(
-                    perm_age[mask], learned["feature"][mask], spline_df=3, spline_degree=3
+                    perm_time[mask], learned["feature"][mask], spline_df=3, spline_degree=3
                 )["f_stat"]
             )
     for branch, key, nulls in [
@@ -258,16 +260,16 @@ def test_window_permutations_against_scalar_global_relearning(inputs, config, ge
         ("continuous", "f_stat", null_c),
     ]:
         for i, row in enumerate(actual[f"localized_{branch}"]):
-            mask = (age >= windows.edges[i]) & (
-                (age <= windows.edges[i + 1]) if i == 1 else (age < windows.edges[i + 1])
+            mask = (time >= windows.edges[i]) & (
+                (time <= windows.edges[i + 1]) if i == 1 else (time < windows.edges[i + 1])
             )
             if branch == "discrete":
                 expected_stat = s._fit_discrete_step_statistic(
-                    age[mask], observed.to_numpy()[mask], config=config.discrete
+                    time[mask], observed.to_numpy()[mask], config=config.discrete
                 )[key]
             else:
                 expected_stat = s._fit_nested_spline_test(
-                    age[mask], observed.to_numpy()[mask], spline_df=3, spline_degree=3
+                    time[mask], observed.to_numpy()[mask], spline_df=3, spline_degree=3
                 )[key]
             np.testing.assert_allclose(row[key], expected_stat, rtol=1e-12)
             expected_p = (1 + np.count_nonzero(np.array(nulls[i]) >= expected_stat)) / 40

@@ -77,9 +77,9 @@ def build_argument_parser() -> argparse.ArgumentParser:
         help="Metadata sample-ID column. Default: sample_id.",
     )
     parser.add_argument(
-        "--age-col",
-        default="age",
-        help="Metadata age column. Default: age.",
+        "--time-col",
+        default="time",
+        help="Metadata time column. Default: time.",
     )
 
     parser.add_argument(
@@ -122,15 +122,6 @@ def build_argument_parser() -> argparse.ArgumentParser:
         help=("Gene column in tx2gene. If omitted, common names are auto-detected."),
     )
 
-    parser.add_argument(
-        "--include-prenatal",
-        action="store_true",
-        help=(
-            "Retain negative ages. By default preparation restricts to age >= 0 "
-            "so the core receives postnatal-only metadata."
-        ),
-    )
-
     return parser
 
 
@@ -158,13 +149,12 @@ def main() -> None:
         metadata=metadata,
         tx2gene=tx2gene,
         metadata_sample_col=args.metadata_sample_col,
-        age_col=args.age_col,
+        time_col=args.time_col,
         metadata_filters=filters,
         abundance_key=args.abundance_key,
         sample_id_parser=sample_parser,
         tx2gene_transcript_col=args.tx2gene_transcript_col,
         tx2gene_gene_col=args.tx2gene_gene_col,
-        postnatal_only=not args.include_prenatal,
     )
 
     save_prepared_inputs(result, args.output_dir)

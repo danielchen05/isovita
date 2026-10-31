@@ -5,7 +5,7 @@ import pytest
 from isovita import preprocessing as p, validate_core_inputs, filter_tpm_for_isoplex, IsoPlexConfig
 
 
-def test_metadata_filter_age_and_order():
+def test_metadata_filter_time_and_order():
     meta = pd.DataFrame(
         {
             "id": ["a", "b", "c", "d", "e"],
@@ -13,9 +13,9 @@ def test_metadata_filter_age_and_order():
             "region": ["A", "A", "A", "B", "A"],
         }
     )
-    out = p.prepare_metadata(meta, sample_col="id", age_col="years", filters={"region": "A"})
-    assert out.sample_id.tolist() == ["a"] and out.age.tolist() == [2.0]
-    out = p.prepare_metadata(meta, sample_col="id", age_col="years", postnatal_only=False)
+    out = p.prepare_metadata(meta, sample_col="id", time_col="years", filters={"region": "A"})
+    assert out.sample_id.tolist() == ["a", "c"] and out.time.tolist() == [2.0, -1.0]
+    out = p.prepare_metadata(meta, sample_col="id", time_col="years")
     assert out.sample_id.tolist() == ["a", "c", "d"]
 
 
@@ -23,14 +23,14 @@ def test_mapping_alignment_and_unmapped_drop():
     expression = pd.DataFrame(
         {"tx_id": ["t1", "t2", "unmapped"], "b": [2, 3, 4], "a": [5, 6, 7], "extra": [8, 9, 10]}
     )
-    metadata = pd.DataFrame({"sample_id": ["a", "missing", "b"], "age": [1, 2, 3]})
+    metadata = pd.DataFrame({"sample_id": ["a", "missing", "b"], "time": [1, 2, 3]})
     mapping = pd.DataFrame({"transcript": ["t1", "t2"], "gene": ["g", "g"]})
     out = p.prepare_isovita_inputs_from_expression(
         expression=expression,
         metadata=metadata,
         tx2gene=mapping,
         metadata_sample_col="sample_id",
-        age_col="age",
+        time_col="time",
     )
     assert out.tpm.columns.tolist() == ["gene_id", "transcript_id", "a", "b"]
     assert out.metadata.sample_id.tolist() == ["a", "b"]
@@ -44,8 +44,8 @@ def test_mapping_alignment_and_unmapped_drop():
     [
         "duplicate_tx",
         "duplicate_sample",
-        "bad_age",
-        "missing_age",
+        "bad_time",
+        "missing_time",
         "negative_expression",
         "infinite_expression",
         "missing_expression",
@@ -59,11 +59,11 @@ def test_invalid_core_inputs(inputs, kind):
         tpm.loc[1, "transcript_id"] = tpm.loc[0, "transcript_id"]
     elif kind == "duplicate_sample":
         meta.loc[1, "sample_id"] = meta.loc[0, "sample_id"]
-    elif kind == "bad_age":
-        meta["age"] = meta.age.astype(object)
-        meta.loc[0, "age"] = "bad"
-    elif kind == "missing_age":
-        meta.loc[0, "age"] = np.nan
+    elif kind == "bad_time":
+        meta["time"] = meta.time.astype(object)
+        meta.loc[0, "time"] = "bad"
+    elif kind == "missing_time":
+        meta.loc[0, "time"] = np.nan
     elif kind == "negative_expression":
         tpm.iloc[0, 2] = -1
     elif kind == "infinite_expression":
@@ -83,7 +83,7 @@ def test_duplicate_mapping_and_metadata():
         p.normalize_tx2gene(pd.DataFrame({"tx_id": ["t", "t"], "gene_id": ["g", "g"]}))
     with pytest.raises(ValueError, match="Duplicate"):
         p.prepare_metadata(
-            pd.DataFrame({"id": ["s", "s"], "age": [1, 1]}), sample_col="id", age_col="age"
+            pd.DataFrame({"id": ["s", "s"], "time": [1, 1]}), sample_col="id", time_col="time"
         )
 
 
@@ -147,8 +147,8 @@ def test_save_and_reload_preparation(inputs, tmp_path):
 def test_known_legacy_validation_gaps(inputs):
     # Compatibility assertions, not endorsements: documented for future fixes.
     tpm, meta = (x.copy() for x in inputs)
-    meta.loc[0, "age"] = np.inf
-    _, validated, _ = validate_core_inputs(tpm, meta)
-    assert np.isinf(validated.age.iloc[0])
+    meta.loc[0, "time"] = np.inf
+    with pytest.raises(ValueError, match="finite"):
+        validate_core_inputs(tpm, meta)
     mapping = p.normalize_tx2gene(pd.DataFrame({"tx_id": [None], "gene_id": [None]}))
     assert mapping.tx_id.iloc[0] == "None"

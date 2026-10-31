@@ -28,13 +28,13 @@ def test_invalid_null_stats(null):
         p._selection_aware_permutation_p_value(1, null)
 
 
-def test_synchronized_age_permutations():
-    ages = np.array([3.0, 1.0, 1.0, 2.0, 5.0])
+def test_synchronized_time_permutations():
+    times = np.array([3.0, 1.0, 1.0, 2.0, 5.0])
     idx = p._cached_permutation_indices(5, 9, 10)
     for row in idx:
         np.testing.assert_array_equal(np.sort(row), np.arange(5))
-    expected = np.argsort(ages[idx], axis=1, kind="mergesort")
-    actual = p._get_cached_permutation_orders(ages, n_permutations=9, random_seed=10)
+    expected = np.argsort(times[idx], axis=1, kind="mergesort")
+    actual = p._get_cached_permutation_orders(times, n_permutations=9, random_seed=10)
     np.testing.assert_array_equal(actual, expected)
     np.testing.assert_array_equal(idx, p._cached_permutation_indices(5, 9, 10))
     assert not np.array_equal(idx, p._cached_permutation_indices(5, 9, 11))
@@ -46,12 +46,12 @@ def test_relearn_each_permutation_against_scalar(inputs, config):
     prepared = b.make_effective_isoform_composition(
         "smooth", expr, tx, samples, meta, pseudocount=1e-8, min_samples=20
     )
-    ages = prepared["ages"]
+    times = prepared["times"]
     clr = b.clr_transform(prepared["composition"])
-    idx = p._cached_permutation_indices(len(ages), 39, 17)
-    orders = p._get_cached_permutation_orders(ages, n_permutations=39, random_seed=17)
-    w = splines._build_fixed_age_spline_workspace(
-        ages, spline_df=4, spline_degree=3, age_grid_size=100
+    idx = p._cached_permutation_indices(len(times), 39, 17)
+    orders = p._get_cached_permutation_orders(times, n_permutations=39, random_seed=17)
+    w = splines._build_fixed_time_spline_workspace(
+        times, spline_df=4, spline_degree=3, time_grid_size=100
     )
     batch = b._learn_permuted_balance_features_batch(
         clr,
@@ -62,13 +62,13 @@ def test_relearn_each_permutation_against_scalar(inputs, config):
     )
     assignments = []
     for i in range(39):
-        perm_ages = ages[idx[i]]
-        observed = splines._build_observed_age_spline_workspace(
-            perm_ages, spline_df=4, spline_degree=3, age_grid_size=100
+        perm_times = times[idx[i]]
+        observed = splines._build_observed_time_spline_workspace(
+            perm_times, spline_df=4, spline_degree=3, time_grid_size=100
         )
         scalar = b._learn_balance_from_prepared(
             prepared,
-            perm_ages,
+            perm_times,
             config=config.balance,
             spline_workspace=observed,
             clr_values=clr,
@@ -96,12 +96,12 @@ def test_relearn_each_permutation_against_scalar(inputs, config):
     null_d = []
     null_c = []
     for i in range(39):
-        perm_age = ages[idx[i]]
+        perm_time = times[idx[i]]
         null_d.append(
-            s._fit_discrete_step_statistic(perm_age, batch[i], config=config.discrete)["max_f_stat"]
+            s._fit_discrete_step_statistic(perm_time, batch[i], config=config.discrete)["max_f_stat"]
         )
         null_c.append(
-            s._fit_nested_spline_test(perm_age, batch[i], spline_df=3, spline_degree=3)["f_stat"]
+            s._fit_nested_spline_test(perm_time, batch[i], spline_df=3, spline_degree=3)["f_stat"]
         )
     for branch, key, null in [("discrete", "max_f_stat", null_d), ("continuous", "f_stat", null_c)]:
         expected = (1 + np.count_nonzero(np.array(null) >= actual[branch][key])) / 40

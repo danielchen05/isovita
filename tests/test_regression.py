@@ -17,7 +17,9 @@ def test_original_pipeline_all_fields(inputs, config, baseline, branches):
     assert [f.name for f in fields(r)] == list(expected)
     for f in fields(r):
         actual = getattr(r, f.name)
-        if f.name == "selected_branches":
+        if f.name == "filtering_method":
+            assert actual == expected[f.name]
+        elif f.name == "selected_branches":
             assert list(actual) == expected[f.name]
         else:
             assert_frame(actual, expected[f.name])
@@ -36,7 +38,7 @@ def test_original_preprocessing(inputs, baseline):
         metadata=meta.iloc[::-1],
         tx2gene=tpm[["gene_id", "transcript_id"]],
         metadata_sample_col="sample_id",
-        age_col="age",
+        time_col="time",
     )
     for name in ["tpm", "metadata", "summary"]:
         assert_frame(getattr(prepared, name), baseline["preprocessing"][name], exact=True)
@@ -50,12 +52,12 @@ def test_original_intermediate_values(inputs, config, baseline, gene):
         gene, expr, tx, samples, meta, pseudocount=1e-8, min_samples=20
     )
     clr = balances.clr_transform(p["composition"])
-    w = splines._build_observed_age_spline_workspace(
-        p["ages"], spline_df=4, spline_degree=3, age_grid_size=100
+    w = splines._build_observed_time_spline_workspace(
+        p["times"], spline_df=4, spline_degree=3, time_grid_size=100
     )
     learned = balances._learn_balance_from_prepared(
         p,
-        p["ages"],
+        p["times"],
         config=config.balance,
         spline_workspace=w,
         clr_values=clr,
@@ -81,7 +83,7 @@ def test_original_intermediate_values(inputs, config, baseline, gene):
         np.testing.assert_allclose(actual, expected[name], rtol=1e-9, atol=1e-11)
 
 
-def test_all_45_original_public_signatures():
+def test_public_signatures_after_documented_migration():
     import inspect
     import json
     import isovita

@@ -19,5 +19,6 @@
     "random_seed": 17,
     "batch_size": 7,
     "source": "Unmodified supplied core script; actual IsoPlex"
-  }
+  },
+  "v0.2_migration": "Only age/time identifiers, filtering result field names, and filtering_method provenance were updated in baseline fixtures. All numerical reference values are unchanged."
 }

@@ -78,26 +78,30 @@ def prepare_metadata(
     metadata: pd.DataFrame,
     *,
     sample_col: str,
-    age_col: str,
+    time_col: str,
     filters: Optional[Mapping[str, object]] = None,
     canonical_sample_col: str = "sample_id",
-    postnatal_only: bool = True,
 ) -> pd.DataFrame:
-    """Filter and standardize metadata before it reaches the IsoVita core."""
+    """Standardize a general continuous coordinate as ``time``.
+
+    Negative values are retained. As in 0.1, missing/non-numeric coordinates
+    are dropped during preparation; infinite coordinates raise an error.
+    Apply any desired range restriction to metadata explicitly before calling.
+    """
     meta = apply_metadata_filters(metadata, filters)
 
-    required = {sample_col, age_col}
+    required = {sample_col, time_col}
     missing = required - set(meta.columns)
     if missing:
         raise ValueError(f"Metadata missing required columns: {sorted(missing)}")
 
     meta = meta.copy()
     meta[sample_col] = meta[sample_col].astype(str)
-    meta[age_col] = pd.to_numeric(meta[age_col], errors="coerce")
-    meta = meta.dropna(subset=[sample_col, age_col]).copy()
+    meta[time_col] = pd.to_numeric(meta[time_col], errors="coerce")
+    meta = meta.dropna(subset=[sample_col, time_col]).copy()
 
-    if postnatal_only:
-        meta = meta.loc[meta[age_col] >= 0].copy()
+    if not np.isfinite(meta[time_col].to_numpy(dtype=float)).all():
+        raise ValueError("Metadata time must be finite.")
 
     if meta.empty:
         raise ValueError("No metadata rows remain after the requested filters.")
@@ -105,8 +109,8 @@ def prepare_metadata(
     if canonical_sample_col != sample_col:
         meta[canonical_sample_col] = meta[sample_col].astype(str)
 
-    if age_col != "age":
-        meta["age"] = meta[age_col]
+    if time_col != "time":
+        meta["time"] = meta[time_col]
 
     duplicate_mask = meta[canonical_sample_col].duplicated(keep=False)
     if duplicate_mask.any():
@@ -116,7 +120,7 @@ def prepare_metadata(
         )
 
     # Put the two canonical columns first while preserving useful dataset columns.
-    first = [canonical_sample_col, "age"]
+    first = [canonical_sample_col, "time"]
     remaining = [c for c in meta.columns if c not in first]
     return meta[first + remaining].reset_index(drop=True)
 
@@ -351,7 +355,7 @@ def validate_prepared_inputs(
     metadata: pd.DataFrame,
     *,
     sample_col: str = "sample_id",
-    age_col: str = "age",
+    time_col: str = "time",
 ) -> None:
     """Validate the exact canonical contract consumed by the IsoVita core."""
     required_tpm = {"gene_id", "transcript_id"}
@@ -361,16 +365,16 @@ def validate_prepared_inputs(
     if tpm["transcript_id"].duplicated().any():
         raise ValueError("TPM transcript_id values are not unique.")
 
-    required_meta = {sample_col, age_col}
+    required_meta = {sample_col, time_col}
     missing_meta = required_meta - set(metadata.columns)
     if missing_meta:
         raise ValueError(f"Metadata missing required standardized columns: {sorted(missing_meta)}")
     if metadata[sample_col].duplicated().any():
         raise ValueError("Metadata sample IDs are not unique.")
 
-    age = pd.to_numeric(metadata[age_col], errors="coerce")
-    if age.isna().any():
-        raise ValueError("Standardized metadata age contains missing/non-numeric values.")
+    time = pd.to_numeric(metadata[time_col], errors="coerce")
+    if not np.isfinite(time.to_numpy(dtype=float)).all():
+        raise ValueError("Standardized metadata time must contain finite numeric values.")
 
     sample_ids = metadata[sample_col].astype(str).tolist()
     tpm_sample_cols = [str(c) for c in tpm.columns if c not in {"gene_id", "transcript_id"}]
@@ -391,17 +395,17 @@ def build_preparation_summary(
     *,
     metadata: pd.DataFrame,
     tpm: pd.DataFrame,
-    age_col: str = "age",
+    time_col: str = "time",
 ) -> pd.DataFrame:
     """Build a compact machine-readable summary of final core inputs."""
-    age = pd.to_numeric(metadata[age_col], errors="coerce")
+    time = pd.to_numeric(metadata[time_col], errors="coerce")
     rows = [
         ("retained_samples", int(len(metadata))),
         ("retained_transcripts", int(tpm["transcript_id"].nunique())),
         ("retained_genes", int(tpm["gene_id"].nunique())),
-        ("age_min", float(age.min())),
-        ("age_max", float(age.max())),
-        ("n_negative_age", int((age < 0).sum())),
+        ("time_min", float(time.min())),
+        ("time_max", float(time.max())),
+        ("n_negative_time", int((time < 0).sum())),
     ]
     return pd.DataFrame(rows, columns=["metric", "value"])
 
@@ -412,21 +416,19 @@ def prepare_isovita_inputs_from_expression(
     metadata: pd.DataFrame,
     tx2gene: pd.DataFrame,
     metadata_sample_col: str,
-    age_col: str,
+    time_col: str,
     metadata_filters: Optional[Mapping[str, object]] = None,
     expression_transcript_col: str = "tx_id",
     tx2gene_transcript_col: Optional[str] = None,
     tx2gene_gene_col: Optional[str] = None,
-    postnatal_only: bool = True,
 ) -> PreparedIsoVitaInputs:
     """Prepare canonical gene-annotated TPM and metadata from a table."""
     meta = prepare_metadata(
         metadata,
         sample_col=metadata_sample_col,
-        age_col=age_col,
+        time_col=time_col,
         filters=metadata_filters,
         canonical_sample_col="sample_id",
-        postnatal_only=postnatal_only,
     )
 
     expr = expression.copy()
@@ -470,13 +472,12 @@ def prepare_isovita_inputs(
     metadata: pd.DataFrame,
     tx2gene: pd.DataFrame,
     metadata_sample_col: str,
-    age_col: str,
+    time_col: str,
     metadata_filters: Optional[Mapping[str, object]] = None,
     abundance_key: str = "abundance",
     sample_id_parser: Optional[Callable[[str], str]] = None,
     tx2gene_transcript_col: Optional[str] = None,
     tx2gene_gene_col: Optional[str] = None,
-    postnatal_only: bool = True,
 ) -> PreparedIsoVitaInputs:
     """AnnData adapter for :func:`prepare_isovita_inputs_from_expression`."""
     expression = extract_transcript_abundance(
@@ -490,12 +491,11 @@ def prepare_isovita_inputs(
         metadata=metadata,
         tx2gene=tx2gene,
         metadata_sample_col=metadata_sample_col,
-        age_col=age_col,
+        time_col=time_col,
         metadata_filters=metadata_filters,
         expression_transcript_col="tx_id",
         tx2gene_transcript_col=tx2gene_transcript_col,
         tx2gene_gene_col=tx2gene_gene_col,
-        postnatal_only=postnatal_only,
     )
 
 

@@ -11,7 +11,11 @@ def run_isoplex(expression_df: pd.DataFrame):
     try:
         import isoplex
     except ImportError as exc:
-        raise ImportError("IsoPlex is required for run_isoplex().") from exc
+        raise ImportError(
+            'IsoPlex filtering requires the optional dependency. Install '
+            'pip install "isovita[isoplex]" or use IsoVitaConfig(filtering="none") '
+            'for prefiltered components.'
+        ) from exc
 
     return isoplex.compute_multi_sample_isoform_metrics(
         expression_df,
@@ -24,11 +28,11 @@ def run_isoplex(expression_df: pd.DataFrame):
 def get_effective_isoforms(
     global_metrics: pd.DataFrame,
 ) -> Dict[str, List[str]]:
-    """Map each gene to its IsoPlex-effective transcript IDs."""
+    """Map each group to its eligible component IDs."""
     required = {"gene_id", "transcript_id", "effective"}
     missing = required - set(global_metrics.columns)
     if missing:
-        raise ValueError(f"IsoPlex global metrics missing: {sorted(missing)}")
+        raise ValueError(f"Component membership table missing: {sorted(missing)}")
 
     eff = global_metrics.loc[
         global_metrics["effective"].astype(bool),

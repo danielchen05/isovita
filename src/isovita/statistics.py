@@ -28,7 +28,7 @@ def _spline_f_statistics_from_sorted_matrix(
     y_sorted_matrix: np.ndarray,
     workspace: Dict[str, object],
 ) -> np.ndarray:
-    """Vectorized spline F statistics for rows already ordered by fixed ages."""
+    """Vectorized spline F statistics for rows already ordered by fixed times."""
     Y = np.asarray(y_sorted_matrix, dtype=float)
     if Y.ndim == 1:
         Y = Y[None, :]
@@ -139,14 +139,14 @@ def _max_step_f_statistics_from_sorted_matrix(
 
 
 def _valid_change_point_positions(
-    ages_sorted: np.ndarray,
+    times_sorted: np.ndarray,
     *,
     min_samples_side: int,
     min_fraction_side: float,
 ) -> Tuple[np.ndarray, int]:
-    """Return valid split positions j (left has j samples) between distinct ages."""
-    ages = np.asarray(ages_sorted, dtype=float)
-    n = len(ages)
+    """Return valid split positions j (left has j samples) between distinct times."""
+    times = np.asarray(times_sorted, dtype=float)
+    n = len(times)
     min_side = max(
         int(min_samples_side),
         int(np.ceil(float(min_fraction_side) * n)),
@@ -155,9 +155,9 @@ def _valid_change_point_positions(
     if n < 2 * min_side:
         return np.asarray([], dtype=int), min_side
 
-    # Position j means ages[:j] are left and ages[j:] are right.
+    # Position j means times[:j] are left and times[j:] are right.
     positions = np.arange(1, n, dtype=int)
-    distinct_boundary = ages[:-1] < ages[1:]
+    distinct_boundary = times[:-1] < times[1:]
     enough_left = positions >= min_side
     enough_right = (n - positions) >= min_side
     valid = distinct_boundary & enough_left & enough_right
@@ -224,7 +224,7 @@ def _step_stats_for_sorted_values(
 
 
 def _fit_discrete_step_statistic(
-    age: np.ndarray,
+    time: np.ndarray,
     y: np.ndarray,
     *,
     config: DiscreteConfig,
@@ -233,10 +233,10 @@ def _fit_discrete_step_statistic(
     precomputed_min_side: Optional[int] = None,
 ) -> Dict[str, object]:
     """Fit one unknown pure step and return the maximized observed statistic."""
-    age = np.asarray(age, dtype=float)
+    time = np.asarray(time, dtype=float)
     y = np.asarray(y, dtype=float)
-    ok = np.isfinite(age) & np.isfinite(y)
-    age = age[ok]
+    ok = np.isfinite(time) & np.isfinite(y)
+    time = time[ok]
     y = y[ok]
     n = len(y)
 
@@ -244,7 +244,7 @@ def _fit_discrete_step_statistic(
         "n": int(n),
         "tested": False,
         "n_candidate_cuts": 0,
-        "best_change_age": np.nan,
+        "best_change_time": np.nan,
         "n_left": np.nan,
         "n_right": np.nan,
         "left_mean": np.nan,
@@ -259,7 +259,7 @@ def _fit_discrete_step_statistic(
         "min_samples_side_used": np.nan,
     }
 
-    if n < 3 or np.allclose(np.std(age), 0) or np.allclose(np.std(y), 0):
+    if n < 3 or np.allclose(np.std(time), 0) or np.allclose(np.std(y), 0):
         return base
 
     # Precomputed orders are only valid when no values were dropped by the
@@ -267,9 +267,9 @@ def _fit_discrete_step_statistic(
     if sort_order is not None and bool(np.all(ok)):
         order = np.asarray(sort_order, dtype=np.int64)
     else:
-        order = np.argsort(age, kind="mergesort")
+        order = np.argsort(time, kind="mergesort")
 
-    age_sorted = age[order]
+    time_sorted = time[order]
     y_sorted = y[order]
 
     if precomputed_cut_positions is not None and bool(np.all(ok)):
@@ -284,7 +284,7 @@ def _fit_discrete_step_statistic(
         )
     else:
         cut_positions, min_side = _valid_change_point_positions(
-            age_sorted,
+            time_sorted,
             min_samples_side=config.min_samples_side,
             min_fraction_side=config.min_fraction_side,
         )
@@ -300,16 +300,16 @@ def _fit_discrete_step_statistic(
     if f_stats.size == 0 or np.all(np.isnan(f_stats)):
         return base
 
-    # np.argmax is deterministic; exact ties resolve to the earliest age cut.
+    # np.argmax is deterministic; exact ties resolve to the earliest time cut.
     best_idx = int(np.nanargmax(f_stats))
     best_pos = int(cut_positions[best_idx])
     best_f = float(f_stats[best_idx])
-    change_age = float((age_sorted[best_pos - 1] + age_sorted[best_pos]) / 2.0)
+    change_time = float((time_sorted[best_pos - 1] + time_sorted[best_pos]) / 2.0)
 
     base.update(
         {
             "tested": True,
-            "best_change_age": change_age,
+            "best_change_time": change_time,
             "n_left": best_pos,
             "n_right": n - best_pos,
             "left_mean": float(np.asarray(stats["left_mean"])[best_idx]),
@@ -327,21 +327,21 @@ def _fit_discrete_step_statistic(
 
 
 def _fit_nested_spline_test(
-    age: np.ndarray,
+    time: np.ndarray,
     y: np.ndarray,
     *,
     spline_df: int,
     spline_degree: int,
 ) -> Dict[str, float]:
-    """Compare intercept-only versus spline(age) with an OLS nested F-test."""
-    age = np.asarray(age, dtype=float)
+    """Compare intercept-only versus spline(time) with an OLS nested F-test."""
+    time = np.asarray(time, dtype=float)
     y = np.asarray(y, dtype=float)
-    ok = np.isfinite(age) & np.isfinite(y)
-    age = age[ok]
+    ok = np.isfinite(time) & np.isfinite(y)
+    time = time[ok]
     y = y[ok]
     n = len(y)
 
-    if n < 3 or np.allclose(np.std(age), 0) or np.allclose(np.std(y), 0):
+    if n < 3 or np.allclose(np.std(time), 0) or np.allclose(np.std(y), 0):
         return {
             "n": n,
             "f_stat": np.nan,
@@ -355,8 +355,8 @@ def _fit_nested_spline_test(
     X0 = np.ones((n, 1), dtype=float)
     X1 = np.asarray(
         dmatrix(
-            (f"bs(age, df={int(spline_df)}, degree={int(spline_degree)}, include_intercept=False)"),
-            {"age": age},
+            (f"bs(time, df={int(spline_df)}, degree={int(spline_degree)}, include_intercept=False)"),
+            {"time": time},
             return_type="dataframe",
         ),
         dtype=float,
@@ -397,22 +397,22 @@ def _fit_nested_spline_test(
     }
 
 
-def _feature_correlations(age: np.ndarray, y: np.ndarray) -> Dict[str, float]:
-    age = np.asarray(age, dtype=float)
+def _feature_correlations(time: np.ndarray, y: np.ndarray) -> Dict[str, float]:
+    time = np.asarray(time, dtype=float)
     y = np.asarray(y, dtype=float)
-    ok = np.isfinite(age) & np.isfinite(y)
-    age = age[ok]
+    ok = np.isfinite(time) & np.isfinite(y)
+    time = time[ok]
     y = y[ok]
 
-    if len(y) < 3 or np.allclose(np.std(age), 0) or np.allclose(np.std(y), 0):
+    if len(y) < 3 or np.allclose(np.std(time), 0) or np.allclose(np.std(y), 0):
         return {
             "pearson_r": np.nan,
             "spearman_r": np.nan,
             "abs_pearson_r": np.nan,
         }
 
-    pr = float(pearsonr(y, age)[0])
-    sr = float(spearmanr(y, age)[0])
+    pr = float(pearsonr(y, time)[0])
+    sr = float(spearmanr(y, time)[0])
     return {
         "pearson_r": pr,
         "spearman_r": sr,

@@ -49,11 +49,11 @@ def validate_core_inputs(
             f"{sorted(missing_tpm)}. Run isovita.preprocessing first."
         )
 
-    required_meta = {"sample_id", "age"}
+    required_meta = {"sample_id", "time"}
     missing_meta = required_meta - set(metadata.columns)
     if missing_meta:
         raise ValueError(
-            "Metadata must already contain canonical columns sample_id and age. "
+            "Metadata must already contain canonical columns sample_id and time. "
             f"Missing: {sorted(missing_meta)}."
         )
 
@@ -71,11 +71,11 @@ def validate_core_inputs(
 
     meta = metadata.copy()
     meta["sample_id"] = meta["sample_id"].astype(str)
-    meta["age"] = pd.to_numeric(meta["age"], errors="coerce")
+    meta["time"] = pd.to_numeric(meta["time"], errors="coerce")
     if meta["sample_id"].duplicated().any():
         raise ValueError("Metadata sample_id values must be unique.")
-    if meta["age"].isna().any():
-        raise ValueError("Metadata age must be numeric and non-missing.")
+    if not np.isfinite(meta["time"].to_numpy(dtype=float)).all():
+        raise ValueError("Metadata time must be finite numeric and non-missing.")
 
     sample_cols = [
         str(column) for column in expr.columns if column not in {"gene_id", "transcript_id"}

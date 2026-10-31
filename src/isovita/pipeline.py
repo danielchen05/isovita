@@ -47,17 +47,23 @@ def run_isovita_pipeline(
     Parameters
     ----------
     tpm
-        Standardized transcript-level TPM table with ``gene_id``,
-        ``transcript_id``, then one column per retained sample.
+        Nonnegative abundance table with ``gene_id`` (group),
+        ``transcript_id`` (component), then one column per retained sample.
+        Use transcript TPM for IsoPlex; prefiltered abundances or proportions
+        are accepted with ``config.filtering="none"``.
     metadata
-        Standardized sample metadata with columns ``sample_id`` and ``age``.
-        It must already reflect all dataset/cohort filtering.
+        Standardized sample metadata with columns ``sample_id`` and ``time``.
+        Time is any finite continuous coordinate, including negative values.
+        Metadata must already reflect all dataset/cohort filtering.
     branches
         Defaults to the production workflow ``("discrete", "continuous")``.
         ``"localized"`` may be explicitly added for optional windowed analyses,
         but it never contributes to ``final_features``.
     config
-        Top-level IsoVita configuration. ``config.windows`` must be explicitly
+        ``config.filtering`` is "isoplex" (default) or "none". The latter
+        retains all supplied components, requires positive totals in each
+        sample, and excludes groups with fewer than two components.
+        ``config.windows`` must be explicitly
         supplied whenever ``"localized"`` is requested.
     n_jobs
         Number of shared-memory worker threads for selection-aware gene-level
@@ -73,12 +79,26 @@ def run_isovita_pipeline(
 
     full_tpm, meta, sample_cols = validate_core_inputs(tpm, metadata)
 
-    isoplex_expression_df, isoplex_filter_summary = filter_tpm_for_isoplex(
-        full_tpm,
-        sample_cols,
-        config=config.isoplex,
-    )
-    sample_metrics, global_metrics = run_isoplex(isoplex_expression_df)
+    if config.filtering == "isoplex":
+        filtered_expression_df, filter_summary = filter_tpm_for_isoplex(
+            full_tpm, sample_cols, config=config.isoplex,
+        )
+        sample_metrics, global_metrics = run_isoplex(filtered_expression_df)
+    else:
+        # All supplied components are eligible: no abundance or IsoPlex screen.
+        totals = full_tpm.groupby("gene_id")[sample_cols].sum()
+        if totals.empty or not ((totals > 0) & (totals < float("inf"))).all().all():
+            raise ValueError(
+                "filtering='none' requires finite positive group totals in every sample."
+            )
+        filtered_expression_df = full_tpm.copy()
+        filter_summary = pd.DataFrame([{
+            "step": "prefiltered_input",
+            "n_transcripts": int(full_tpm["transcript_id"].nunique()),
+            "n_genes": int(full_tpm["gene_id"].nunique()),
+        }])
+        sample_metrics = pd.DataFrame(columns=["gene_id", "transcript_id", "sample_id"])
+        global_metrics = full_tpm[["gene_id", "transcript_id"]].assign(effective=True)
     gene_routes = route_genes_by_effective_isoform_count(global_metrics)
 
     # Run-local acceleration structures. They do not alter statistical results.
@@ -86,7 +106,7 @@ def run_isovita_pipeline(
     prepared_cache: Dict[str, Optional[Dict[str, object]]] = {}
     spline_workspace_cache: Dict[Tuple[object, ...], Dict[str, object]] = {}
 
-    # IsoPlex determines effective-isoform membership. Feature values are then
+    # The selected filtering mode determines effective-component membership. Feature values are then
     # computed from the original prepared TPM values for those effective isoforms.
     balance_summary, balance_loadings, balance_feature_matrix = build_one_feature_per_gene(
         expression_df=full_tpm,
@@ -141,11 +161,12 @@ def run_isovita_pipeline(
     localized_continuous_candidates = _significant_rows(localized_continuous_results)
 
     return IsoVitaPipelineResult(
+        filtering_method=config.filtering,
         selected_branches=selected_branches,
         metadata=meta,
         tpm=full_tpm,
-        isoplex_expression_df=isoplex_expression_df,
-        isoplex_filter_summary=isoplex_filter_summary,
+        filtered_expression_df=filtered_expression_df,
+        filter_summary=filter_summary,
         sample_metrics=sample_metrics,
         global_metrics=global_metrics,
         gene_routes=gene_routes,

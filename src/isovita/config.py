@@ -18,7 +18,7 @@ def _format_edge(x: float) -> str:
 
 @dataclass(frozen=True)
 class WindowConfig:
-    """Explicit age-window specification for optional windowed analysis.
+    """Explicit time-window specification for optional windowed analysis.
 
     ``edges=(20, 40, 60, 85)`` defines the intervals 20-40, 40-60, and 60-85.
     Intervals are left-closed/right-open, except the final interval also includes
@@ -63,7 +63,7 @@ class BalanceConfig:
 
     spline_df: int = 4
     spline_degree: int = 3
-    age_grid_size: int = 100
+    time_grid_size: int = 100
     clr_pseudocount: float = 1e-8
     min_samples: int = 20
     near_optimal_cosine_tolerance: float = 0.01
@@ -71,8 +71,8 @@ class BalanceConfig:
     def __post_init__(self) -> None:
         if self.spline_df < self.spline_degree:
             raise ValueError("spline_df must be >= spline_degree.")
-        if self.age_grid_size < 10:
-            raise ValueError("age_grid_size must be at least 10.")
+        if self.time_grid_size < 10:
+            raise ValueError("time_grid_size must be at least 10.")
         if self.clr_pseudocount <= 0:
             raise ValueError("clr_pseudocount must be > 0.")
         if self.min_samples < 3:
@@ -122,9 +122,9 @@ class ContinuousConfig:
 
 @dataclass(frozen=True)
 class PermutationInferenceConfig:
-    """Selection-aware full-pipeline age-permutation inference settings.
+    """Selection-aware full-pipeline time-permutation inference settings.
 
-    ``batch_size`` controls how many age permutations are processed together
+    ``batch_size`` controls how many time permutations are processed together
     during the vectorized pass. It changes memory/runtime only; it does not
     change the permutation set or inferential definition.
     """
@@ -155,6 +155,10 @@ class SelectionConfig:
 class IsoVitaConfig:
     """Top-level configuration for IsoVita.
 
+    ``filtering`` selects "isoplex" (default) or "none" for prefiltered
+    components. ``isoplex`` settings are ignored in the latter mode.
+    ``time`` denotes any finite continuous coordinate, not necessarily time.
+
     ``windows`` is intentionally ``None`` by default. It is required only when
     the optional ``localized`` analysis mode is explicitly requested.
     """
@@ -166,3 +170,8 @@ class IsoVitaConfig:
     inference: PermutationInferenceConfig = field(default_factory=PermutationInferenceConfig)
     selection: SelectionConfig = field(default_factory=SelectionConfig)
     windows: Optional[WindowConfig] = None
+    filtering: str = "isoplex"
+
+    def __post_init__(self) -> None:
+        if self.filtering not in ("isoplex", "none"):
+            raise ValueError("filtering must be 'isoplex' or 'none'.")

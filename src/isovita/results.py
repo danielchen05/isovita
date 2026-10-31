@@ -25,8 +25,8 @@ class IsoVitaPipelineResult:
     selected_branches: Tuple[str, ...]
     metadata: pd.DataFrame
     tpm: pd.DataFrame
-    isoplex_expression_df: pd.DataFrame
-    isoplex_filter_summary: pd.DataFrame
+    filtered_expression_df: pd.DataFrame
+    filter_summary: pd.DataFrame
     sample_metrics: pd.DataFrame
     global_metrics: pd.DataFrame
     gene_routes: pd.DataFrame
@@ -43,6 +43,7 @@ class IsoVitaPipelineResult:
     localized_discrete_candidates: pd.DataFrame
     localized_continuous_candidates: pd.DataFrame
     final_features: pd.DataFrame
+    filtering_method: str = "isoplex"
 
 
 def add_bh_fdr(
@@ -122,7 +123,7 @@ def summarize_gene_trajectories(
                 "step_r_squared": "discrete_step_r_squared",
                 "step_effect": "discrete_step_effect",
                 "abs_step_effect": "discrete_abs_step_effect",
-                "best_change_age": "discrete_change_age",
+                "best_change_time": "discrete_change_time",
                 "left_mean": "discrete_left_mean",
                 "right_mean": "discrete_right_mean",
                 "n_left": "discrete_n_left",
@@ -139,7 +140,7 @@ def summarize_gene_trajectories(
             "discrete_step_r_squared",
             "discrete_step_effect",
             "discrete_abs_step_effect",
-            "discrete_change_age",
+            "discrete_change_time",
             "discrete_left_mean",
             "discrete_right_mean",
             "discrete_n_left",
@@ -277,9 +278,8 @@ def save_isovita_pipeline_outputs(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     tables = {
-        "isoplex_filter_summary.csv": result.isoplex_filter_summary,
-        "isoplex_sample_metrics.csv": result.sample_metrics,
-        "isoplex_global_metrics.csv": result.global_metrics,
+        "filter_summary.csv": result.filter_summary,
+        "component_membership.csv": result.global_metrics[["gene_id", "transcript_id", "effective"]],
         "gene_routes.csv": result.gene_routes,
         "balance_summary.csv": result.balance_summary,
         "balance_loadings.csv": result.balance_loadings,
@@ -287,6 +287,10 @@ def save_isovita_pipeline_outputs(
         "gene_trajectory_summary.csv": result.gene_trajectory_summary,
         "final_features.csv": result.final_features,
     }
+
+    if result.filtering_method == "isoplex":
+        tables["isoplex_sample_metrics.csv"] = result.sample_metrics
+        tables["isoplex_global_metrics.csv"] = result.global_metrics
 
     if "discrete" in result.selected_branches:
         tables["discrete_trajectory_results.csv"] = result.discrete_trajectory_results
@@ -308,4 +312,6 @@ def save_isovita_pipeline_outputs(
             index=(filename == "balance_feature_matrix.csv"),
         )
 
+    (output_dir / "filtering_method.txt").write_text(result.filtering_method + "\n")
     (output_dir / "selected_branches.txt").write_text("\n".join(result.selected_branches) + "\n")
+

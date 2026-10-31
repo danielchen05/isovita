@@ -14,8 +14,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: python -m pip install -e '.[dev]'
+      - run: python -m pip install -e '.[dev,isoplex]'
       - run: python -m pytest
       - run: python -m ruff check src tests
       - run: python -m build
       - run: python -m twine check dist/*
+  core-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install .
+      - run: python -c "import importlib.util; assert importlib.util.find_spec('isoplex') is None"
+      - run: python examples/generic_covariate.py --filtering none

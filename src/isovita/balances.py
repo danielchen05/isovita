@@ -1,4 +1,4 @@
-"""Compositions, exact sparse balances, and age-informed features."""
+"""Compositions, exact sparse balances, and time-informed features."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from .isoplex import (
     get_effective_isoforms,
 )
 from .splines import (
-    _get_cached_observed_age_spline_workspace,
+    _get_cached_observed_time_spline_workspace,
 )
 from .statistics import (
     robust_amplitude,
@@ -61,7 +61,7 @@ def make_effective_isoform_composition(
     """
     Build the effective-isoform composition for one gene.
 
-    Only IsoPlex-effective isoforms are retained, and they are renormalized to
+    Only the supplied eligible components are retained, and they are renormalized to
     sum to one within that effective set for every usable sample.
 
     ``gene_row_index`` is an optional positional-row lookup created once for the
@@ -91,7 +91,7 @@ def make_effective_isoform_composition(
     if gene["transcript_id"].nunique() < 2:
         return None
 
-    # Preserve the effective-isoform order from IsoPlex.
+    # Preserve the component order from the membership table.
     present = set(gene["transcript_id"])
     ordered_isoforms = [tx for tx in effective_isoforms if tx in present]
     if len(ordered_isoforms) < 2:
@@ -117,7 +117,7 @@ def make_effective_isoform_composition(
         "gene_id": gene_id,
         "isoforms": ordered_isoforms,
         "samples": mat.index.to_numpy(dtype=str),
-        "ages": metadata.loc[mat.index, "age"].to_numpy(dtype=float),
+        "times": metadata.loc[mat.index, "time"].to_numpy(dtype=float),
         "raw_fractions": raw_fractions,
         "composition": composition,
     }
@@ -428,7 +428,7 @@ def _learn_permuted_balance_features_batch(
     spline_workspace: Dict[str, object],
     log_composition: np.ndarray,
 ) -> np.ndarray:
-    """Relearn sparse balances for a batch of age permutations."""
+    """Relearn sparse balances for a batch of time permutations."""
     orders = np.asarray(permutation_orders, dtype=np.int64)
     if orders.ndim != 2:
         raise ValueError("permutation_orders must be a 2D matrix.")
@@ -449,7 +449,7 @@ def _learn_permuted_balance_features_batch(
     # batch x basis x isoform
     beta = np.matmul(X_pinv[None, :, :], clr_sorted)
 
-    # batch x age_grid x isoform
+    # batch x time_grid x isoform
     centered_grid = np.matmul(X_grid_centered[None, :, :], beta)
 
     # Batched SVD; only the first right singular vector is needed.
@@ -526,36 +526,36 @@ def compute_balance_feature(
 
 def _learn_balance_from_prepared(
     prepared: Dict[str, object],
-    ages: np.ndarray,
+    times: np.ndarray,
     *,
     config: BalanceConfig,
     spline_workspace: Dict[str, object],
     clr_values: np.ndarray,
     sort_order: np.ndarray,
 ) -> Dict[str, object]:
-    """Learn the observed age-informed sparse balance from a prepared gene."""
+    """Learn the observed time-informed sparse balance from a prepared gene."""
     isoforms = list(prepared["isoforms"])
     samples = np.asarray(prepared["samples"], dtype=str)
     composition = np.asarray(prepared["composition"], dtype=float)
-    ages = np.asarray(ages, dtype=float)
+    times = np.asarray(times, dtype=float)
     clr = np.asarray(clr_values, dtype=float)
     order = np.asarray(sort_order, dtype=np.int64)
 
-    if len(ages) != len(samples):
-        raise ValueError("ages must align one-to-one with prepared samples.")
-    if np.any(~np.isfinite(ages)):
-        raise ValueError("ages must be finite.")
-    if clr.shape[0] != len(ages):
+    if len(times) != len(samples):
+        raise ValueError("times must align one-to-one with prepared samples.")
+    if np.any(~np.isfinite(times)):
+        raise ValueError("times must be finite.")
+    if clr.shape[0] != len(times):
         raise ValueError("CLR values must align one-to-one with prepared samples.")
 
     clr_sorted = clr[order]
     X = np.asarray(spline_workspace["X"], dtype=float)
-    if X.shape[0] != len(ages):
-        raise ValueError("Age vector does not match the feature-learning spline workspace.")
+    if X.shape[0] != len(times):
+        raise ValueError("Time vector does not match the feature-learning spline workspace.")
 
     # Observed pass retains the original least-squares numerical path.
     beta = np.linalg.lstsq(X, clr_sorted, rcond=None)[0]
-    age_grid = np.asarray(spline_workspace["age_grid"], dtype=float)
+    time_grid = np.asarray(spline_workspace["time_grid"], dtype=float)
     X_grid = np.asarray(spline_workspace["X_grid"], dtype=float)
     fitted_grid = X_grid @ beta
     centered_grid = fitted_grid - fitted_grid.mean(axis=0, keepdims=True)
@@ -575,9 +575,9 @@ def _learn_balance_from_prepared(
     return {
         "isoforms": isoforms,
         "samples": samples,
-        "ages": ages,
+        "times": times,
         "composition": composition,
-        "age_grid": age_grid,
+        "time_grid": time_grid,
         "fitted_grid": fitted_grid,
         "centered_grid": centered_grid,
         "singular_values": singular_values,
@@ -626,19 +626,19 @@ def fit_gene_balance(
 
     isoforms = list(prepared["isoforms"])
     samples = np.asarray(prepared["samples"], dtype=str)
-    ages = np.asarray(prepared["ages"], dtype=float)
+    times = np.asarray(prepared["times"], dtype=float)
 
     try:
-        observed_workspace = _get_cached_observed_age_spline_workspace(
-            ages,
+        observed_workspace = _get_cached_observed_time_spline_workspace(
+            times,
             spline_df=config.spline_df,
             spline_degree=config.spline_degree,
-            age_grid_size=config.age_grid_size,
+            time_grid_size=config.time_grid_size,
             cache=spline_workspace_cache,
         )
         learned = _learn_balance_from_prepared(
             prepared,
-            ages,
+            times,
             config=config,
             spline_workspace=observed_workspace,
             clr_values=clr_transform(np.asarray(prepared["composition"], dtype=float)),
