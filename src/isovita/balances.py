@@ -773,7 +773,13 @@ def build_one_feature_per_gene(
         if not feature.empty:
             feature_series.append(feature)
 
-    balance_summary = pd.DataFrame(summary_rows)
+    balance_summary = pd.DataFrame(summary_rows, columns=[
+        "gene_id", "status", "n_effective", "n_samples", "group_A", "group_B",
+        "unused_isoforms", "n_group_A", "n_group_B", "n_unused", "n_used",
+        "cosine_similarity", "best_cosine_similarity", "cosine_gap_from_best",
+        "n_near_optimal", "pc1_explained_variance_ratio", "feature_robust_amplitude",
+        "feature_sd", "balance_method",
+    ])
     if not balance_summary.empty:
         balance_summary = balance_summary.sort_values(
             ["status", "gene_id"],
@@ -799,7 +805,8 @@ def build_one_feature_per_gene(
         balance_feature_matrix.index.name = "gene_id"
         balance_feature_matrix.columns.name = "sample"
     else:
-        balance_feature_matrix = pd.DataFrame()
+        balance_feature_matrix = pd.DataFrame(columns=sample_cols, dtype=float)
         balance_feature_matrix.index.name = "gene_id"
+        balance_feature_matrix.columns.name = "sample"
 
     return balance_summary, balance_loadings, balance_feature_matrix

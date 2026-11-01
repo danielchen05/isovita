@@ -144,11 +144,10 @@ def test_save_and_reload_preparation(inputs, tmp_path):
     assert p.normalize_separator("tab") == "\t"
 
 
-def test_known_legacy_validation_gaps(inputs):
-    # Compatibility assertions, not endorsements: documented for future fixes.
+def test_nonfinite_time_and_missing_mapping_ids(inputs):
     tpm, meta = (x.copy() for x in inputs)
     meta.loc[0, "time"] = np.inf
     with pytest.raises(ValueError, match="finite"):
         validate_core_inputs(tpm, meta)
-    mapping = p.normalize_tx2gene(pd.DataFrame({"tx_id": [None], "gene_id": [None]}))
-    assert mapping.tx_id.iloc[0] == "None"
+    with pytest.raises(ValueError, match="missing or empty"):
+        p.normalize_tx2gene(pd.DataFrame({"tx_id": [None], "gene_id": [None]}))

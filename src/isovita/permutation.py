@@ -14,6 +14,7 @@ from .balances import (
     _learn_permuted_balance_features_batch,
 )
 from .config import (
+    _require_integer,
     BalanceConfig,
     ContinuousConfig,
     DiscreteConfig,
@@ -594,7 +595,14 @@ def _finalize_discrete_table(
     windowed: bool,
 ) -> pd.DataFrame:
     if table.empty:
-        return table
+        window_cols = ["window", "window_index", "window_start", "window_end"] if windowed else []
+        return pd.DataFrame(columns=[
+            "n", "tested", "n_candidate_cuts", "best_change_time", "n_left", "n_right",
+            "left_mean", "right_mean", "step_effect", "abs_step_effect", "rss_null",
+            "rss_step", "delta_rss", "step_r_squared", "max_f_stat", "min_samples_side_used",
+            "gene_id", *window_cols, "selection_aware_p_value", "permutation_p_value",
+            "p_value", "n_permutations", "inference_method", "q_value", "fdr_significant",
+        ])
 
     tested = table["tested"].fillna(False).astype(bool)
     _warn_permutation_resolution(
@@ -640,7 +648,14 @@ def _finalize_continuous_table(
     windowed: bool,
 ) -> pd.DataFrame:
     if table.empty:
-        return table
+        window_cols = ["window", "window_index", "window_start", "window_end"] if windowed else []
+        return pd.DataFrame(columns=[
+            "n", "f_stat", "p_value", "df_diff", "df_resid_full", "r_squared",
+            "fitted_robust_amp", "pearson_r", "spearman_r", "abs_pearson_r", "gene_id",
+            *window_cols, "tested", "analytic_p_value", "selection_aware_p_value",
+            "n_permutations", "inference_method", "q_value", "fdr_significant",
+            "score_predictive_hybrid",
+        ])
 
     tested = table["tested"].fillna(False).astype(bool)
     _warn_permutation_resolution(
@@ -703,6 +718,9 @@ def run_selection_aware_temporal_tests(
 ) -> Dict[str, pd.DataFrame]:
     """Run production and optional windowed selection-aware inference."""
     branches = normalize_branches(branches)
+    _require_integer("n_jobs", n_jobs)
+    if n_jobs == 0 or n_jobs < -1:
+        raise ValueError("n_jobs must be -1 or a positive integer.")
     if "localized" in branches and windows is None:
         raise ValueError(
             "Localized/windowed analysis requires explicit windows. Set "
@@ -766,8 +784,6 @@ def run_selection_aware_temporal_tests(
             permutation_orders=permutation_orders,
         )
 
-    if n_jobs == 0 or n_jobs < -1:
-        raise ValueError("n_jobs must be -1 or a positive integer.")
     resolved_n_jobs = max(1, int(os.cpu_count() or 1)) if int(n_jobs) == -1 else int(n_jobs)
 
     if resolved_n_jobs == 1:

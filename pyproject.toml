@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "isovita"
-version = "0.2.0"
-description = "Interpretable compositional features associated with continuous covariates"
+version = "0.2.1"
+description = "Learning interpretable compositional features associated with continuous covariates"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
 license = "MIT"

@@ -14,6 +14,9 @@ except ImportError:  # Optional unless the AnnData adapter/CLI is used.
 import numpy as np
 import pandas as pd
 
+from .config import _require_integer
+from .inputs import _validate_identifiers
+
 
 @dataclass
 class PreparedIsoVitaInputs:
@@ -96,6 +99,7 @@ def prepare_metadata(
         raise ValueError(f"Metadata missing required columns: {sorted(missing)}")
 
     meta = meta.copy()
+    _validate_identifiers(meta[sample_col], "Metadata sample IDs")
     meta[sample_col] = meta[sample_col].astype(str)
     meta[time_col] = pd.to_numeric(meta[time_col], errors="coerce")
     meta = meta.dropna(subset=[sample_col, time_col]).copy()
@@ -132,6 +136,7 @@ def identity_sample_id(value: str) -> str:
 
 def make_underscore_prefix_parser(n_parts: int = 2) -> Callable[[str], str]:
     """Build a parser retaining the first n underscore-delimited basename parts."""
+    _require_integer("n_parts", n_parts)
     if n_parts < 1:
         raise ValueError("n_parts must be >= 1.")
 
@@ -198,7 +203,11 @@ def extract_transcript_abundance(
         )
 
     parser = sample_id_parser or identity_sample_id
-    sample_ids = [str(parser(x)) for x in adata.obs_names]
+    _validate_identifiers(adata.obs_names, "AnnData sample IDs")
+    _validate_identifiers(adata.var_names, "AnnData transcript IDs")
+    parsed_ids = [parser(x) for x in adata.obs_names]
+    _validate_identifiers(parsed_ids, "Parsed AnnData sample IDs")
+    sample_ids = [str(value) for value in parsed_ids]
 
     sample_index = pd.Index(sample_ids)
     if sample_index.has_duplicates:
@@ -242,6 +251,12 @@ def match_expression_and_metadata(
         raise ValueError(f"Metadata is missing sample column {metadata_sample_col!r}.")
 
     expr = expression.copy()
+    _validate_identifiers(expr[transcript_col], "Expression transcript IDs")
+    _validate_identifiers(metadata[metadata_sample_col], "Metadata sample IDs")
+    _validate_identifiers(
+        [column for column in expr.columns if column != transcript_col],
+        "Expression sample columns",
+    )
     rename_map = {column: str(column) for column in expr.columns if column != transcript_col}
     expr = expr.rename(columns=rename_map)
 
@@ -296,6 +311,8 @@ def normalize_tx2gene(
 
     mapping = mapping[[transcript_col, gene_col]].copy()
     mapping = mapping.rename(columns={transcript_col: "tx_id", gene_col: "gene_id"})
+    _validate_identifiers(mapping["tx_id"], "Mapping transcript IDs")
+    _validate_identifiers(mapping["gene_id"], "Mapping gene IDs")
     mapping["tx_id"] = mapping["tx_id"].astype(str)
     mapping["gene_id"] = mapping["gene_id"].astype(str)
 
@@ -317,6 +334,9 @@ def annotate_tpm_with_genes(
         raise ValueError(f"Expression table is missing transcript column {transcript_col!r}.")
 
     expr = expression.copy()
+    _validate_identifiers(expr[transcript_col], "Expression transcript IDs")
+    _validate_identifiers(tx2gene["tx_id"], "Mapping transcript IDs")
+    _validate_identifiers(tx2gene["gene_id"], "Mapping gene IDs")
     expr[transcript_col] = expr[transcript_col].astype(str)
     mapping = tx2gene[["tx_id", "gene_id"]].copy()
 
@@ -362,6 +382,8 @@ def validate_prepared_inputs(
     missing_tpm = required_tpm - set(tpm.columns)
     if missing_tpm:
         raise ValueError(f"TPM missing canonical columns: {sorted(missing_tpm)}")
+    _validate_identifiers(tpm["gene_id"], "TPM gene_id")
+    _validate_identifiers(tpm["transcript_id"], "TPM transcript_id")
     if tpm["transcript_id"].duplicated().any():
         raise ValueError("TPM transcript_id values are not unique.")
 
@@ -369,6 +391,11 @@ def validate_prepared_inputs(
     missing_meta = required_meta - set(metadata.columns)
     if missing_meta:
         raise ValueError(f"Metadata missing required standardized columns: {sorted(missing_meta)}")
+    _validate_identifiers(metadata[sample_col], "Metadata sample IDs")
+    _validate_identifiers(
+        [column for column in tpm.columns if column not in {"gene_id", "transcript_id"}],
+        "TPM sample columns",
+    )
     if metadata[sample_col].duplicated().any():
         raise ValueError("Metadata sample IDs are not unique.")
 
@@ -438,6 +465,7 @@ def prepare_isovita_inputs_from_expression(
         )
     if expression_transcript_col != "tx_id":
         expr = expr.rename(columns={expression_transcript_col: "tx_id"})
+    _validate_identifiers(expr["tx_id"], "Expression transcript IDs")
     expr["tx_id"] = expr["tx_id"].astype(str)
     if not expr["tx_id"].is_unique:
         raise ValueError("Expression transcript IDs must be unique.")

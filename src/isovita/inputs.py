@@ -12,6 +12,13 @@ from .config import (
 )
 
 
+def _validate_identifiers(values, name: str) -> None:
+    """Reject null/blank identifiers before any conversion to strings."""
+    ids = pd.Series(values, dtype=object)
+    if ids.isna().any() or ids.map(lambda value: isinstance(value, str) and not value.strip()).any():
+        raise ValueError(f"{name} must not contain missing or empty identifiers.")
+
+
 def normalize_branches(branches: Sequence[str]) -> Tuple[str, ...]:
     """Validate branch selection and return it in canonical algorithm order."""
     if isinstance(branches, str):
@@ -58,6 +65,8 @@ def validate_core_inputs(
         )
 
     expr = tpm.copy()
+    _validate_identifiers(expr["gene_id"], "TPM gene_id")
+    _validate_identifiers(expr["transcript_id"], "TPM transcript_id")
     expr["gene_id"] = expr["gene_id"].astype(str)
     expr["transcript_id"] = expr["transcript_id"].astype(str)
 
@@ -70,6 +79,7 @@ def validate_core_inputs(
         raise ValueError(f"TPM transcript_id values must be unique. Examples: {duplicated[:10]}")
 
     meta = metadata.copy()
+    _validate_identifiers(meta["sample_id"], "Metadata sample_id")
     meta["sample_id"] = meta["sample_id"].astype(str)
     meta["time"] = pd.to_numeric(meta["time"], errors="coerce")
     if meta["sample_id"].duplicated().any():
@@ -77,6 +87,10 @@ def validate_core_inputs(
     if not np.isfinite(meta["time"].to_numpy(dtype=float)).all():
         raise ValueError("Metadata time must be finite numeric and non-missing.")
 
+    _validate_identifiers(
+        [column for column in expr.columns if column not in {"gene_id", "transcript_id"}],
+        "TPM sample columns",
+    )
     sample_cols = [
         str(column) for column in expr.columns if column not in {"gene_id", "transcript_id"}
     ]

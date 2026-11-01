@@ -1,6 +1,6 @@
 """IsoVita: interpretable compositional features along continuous covariates."""
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from .balances import (
     build_one_feature_per_gene,

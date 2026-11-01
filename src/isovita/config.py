@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from numbers import Integral
 from typing import Optional, Tuple
 import numpy as np
 
 
 PRODUCTION_BRANCHES: Tuple[str, ...] = ("discrete", "continuous")
 VALID_BRANCHES: Tuple[str, ...] = PRODUCTION_BRANCHES + ("localized",)
+
+
+def _require_integer(name: str, value: object) -> None:
+    """Accept Python/NumPy integers, but never silently truncate or accept bools."""
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise ValueError(f"{name} must be an integer.")
 
 
 def _format_edge(x: float) -> str:
@@ -56,6 +63,9 @@ class IsoPlexConfig:
     min_samples_above_tpm: int = 5
     require_positive_gene_total_every_sample: bool = True
 
+    def __post_init__(self) -> None:
+        _require_integer("min_samples_above_tpm", self.min_samples_above_tpm)
+
 
 @dataclass(frozen=True)
 class BalanceConfig:
@@ -69,12 +79,14 @@ class BalanceConfig:
     near_optimal_cosine_tolerance: float = 0.01
 
     def __post_init__(self) -> None:
+        for name in ("spline_df", "spline_degree", "time_grid_size", "min_samples"):
+            _require_integer(name, getattr(self, name))
         if self.spline_df < self.spline_degree:
             raise ValueError("spline_df must be >= spline_degree.")
         if self.time_grid_size < 10:
             raise ValueError("time_grid_size must be at least 10.")
-        if self.clr_pseudocount <= 0:
-            raise ValueError("clr_pseudocount must be > 0.")
+        if not np.isfinite(self.clr_pseudocount) or self.clr_pseudocount <= 0:
+            raise ValueError("clr_pseudocount must be finite and > 0.")
         if self.min_samples < 3:
             raise ValueError("min_samples must be at least 3.")
         if not (0 <= self.near_optimal_cosine_tolerance < 1):
@@ -90,6 +102,7 @@ class DiscreteConfig:
     alpha_fdr: float = 0.05
 
     def __post_init__(self) -> None:
+        _require_integer("min_samples_side", self.min_samples_side)
         if self.min_samples_side < 2:
             raise ValueError("min_samples_side must be at least 2.")
         if not (0.0 <= self.min_fraction_side < 0.5):
@@ -110,6 +123,8 @@ class ContinuousConfig:
     robust_amp_q_high: float = 0.95
 
     def __post_init__(self) -> None:
+        for name in ("spline_df", "spline_degree", "min_samples"):
+            _require_integer(name, getattr(self, name))
         if self.spline_df < self.spline_degree:
             raise ValueError("spline_df must be >= spline_degree.")
         if self.min_samples < 3:
@@ -134,6 +149,10 @@ class PermutationInferenceConfig:
     batch_size: int = 128
 
     def __post_init__(self) -> None:
+        for name in ("n_permutations", "random_seed", "batch_size"):
+            _require_integer(name, getattr(self, name))
+        if self.random_seed < 0:
+            raise ValueError("random_seed must be >= 0.")
         if self.n_permutations < 1:
             raise ValueError("n_permutations must be >= 1.")
         if self.batch_size < 1:
@@ -147,6 +166,8 @@ class SelectionConfig:
     top_n_genes: Optional[int] = None
 
     def __post_init__(self) -> None:
+        if self.top_n_genes is not None:
+            _require_integer("top_n_genes", self.top_n_genes)
         if self.top_n_genes is not None and self.top_n_genes < 1:
             raise ValueError("top_n_genes must be None or >= 1.")
 

@@ -19,7 +19,7 @@ def test_public_entrypoint_signature():
     assert s.parameters["branches"].default == ("discrete", "continuous")
     assert s.parameters["progress_every"].default is None
     assert s.parameters["n_jobs"].default == 1
-    assert iv.__version__ == "0.2.0"
+    assert iv.__version__ == "0.2.1"
 
 
 def test_real_isoplex_and_result_contract(result):

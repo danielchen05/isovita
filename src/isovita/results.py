@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import warnings
 from statsmodels.stats.multitest import multipletests
 from typing import Dict, Optional, Sequence, Tuple
 import numpy as np
@@ -105,15 +106,14 @@ def summarize_gene_trajectories(
 ) -> pd.DataFrame:
     """Merge global evidence from selected production branches only."""
     production_branches = _production_branches(branches)
-    if balance_summary.empty:
-        return balance_summary.copy()
-    ok_balance = balance_summary.loc[balance_summary["status"].eq("ok")].copy()
-    if ok_balance.empty:
-        return ok_balance
+    summary = (
+        balance_summary.copy() if balance_summary.empty
+        else balance_summary.loc[balance_summary["status"].eq("ok")].copy()
+    )
+    if "gene_id" not in summary.columns:
+        summary["gene_id"] = pd.Series(dtype=object)
 
-    summary = ok_balance.copy()
-
-    if "discrete" in production_branches and not discrete_results.empty:
+    if "discrete" in production_branches and "gene_id" in discrete_results.columns:
         discrete_keep = discrete_results.rename(
             columns={
                 "p_value": "discrete_p_value",
@@ -153,7 +153,7 @@ def summarize_gene_trajectories(
             how="left",
         )
 
-    if "continuous" in production_branches and not continuous_results.empty:
+    if "continuous" in production_branches and "gene_id" in continuous_results.columns:
         continuous_keep = continuous_results.rename(
             columns={
                 "p_value": "continuous_p_value",
@@ -198,9 +198,9 @@ def summarize_gene_trajectories(
     else:
         summary["n_detection_branches"] = 0
 
-    summary["trajectory_signature"] = summary.apply(
-        lambda row: _trajectory_signature(row, production_branches),
-        axis=1,
+    summary["trajectory_signature"] = (
+        pd.Series(index=summary.index, dtype=object) if summary.empty
+        else summary.apply(lambda row: _trajectory_signature(row, production_branches), axis=1)
     )
 
     q_col_map = {
@@ -227,7 +227,9 @@ def select_final_gene_features(
     production_branches = _production_branches(branches)
     if gene_summary.empty:
         empty = gene_summary.copy()
-        return empty, empty, empty
+        selected = empty.copy()
+        selected.insert(0, "rank_gene", pd.Series(dtype=int))
+        return empty.copy(), empty.copy(), selected
 
     candidates: Dict[str, pd.DataFrame] = {}
     for branch in PRODUCTION_BRANCHES:
@@ -273,9 +275,21 @@ def save_isovita_pipeline_outputs(
     result: IsoVitaPipelineResult,
     output_dir: str | Path,
 ) -> None:
-    """Write shared outputs plus only the analyses that were requested."""
+    """Write requested outputs, warning when reusing a nonempty directory.
+
+    Matching filenames are overwritten; other files are left in place.
+    Use a fresh directory to avoid stale outputs from previous runs.
+    """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    if any(output_dir.iterdir()):
+        warnings.warn(
+            "Output directory is not empty: matching files will be overwritten, "
+            "but other files (including results from previous branches or filtering modes) "
+            "will remain. Use a fresh output directory to avoid stale results.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     tables = {
         "filter_summary.csv": result.filter_summary,

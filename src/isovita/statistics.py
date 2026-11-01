@@ -259,7 +259,7 @@ def _fit_discrete_step_statistic(
         "min_samples_side_used": np.nan,
     }
 
-    if n < 3 or np.allclose(np.std(time), 0) or np.allclose(np.std(y), 0):
+    if n < 3 or np.all(time == time[0]) or np.allclose(np.std(y), 0):
         return base
 
     # Precomputed orders are only valid when no values were dropped by the
@@ -341,7 +341,7 @@ def _fit_nested_spline_test(
     y = y[ok]
     n = len(y)
 
-    if n < 3 or np.allclose(np.std(time), 0) or np.allclose(np.std(y), 0):
+    if n < 3 or np.all(time == time[0]) or np.allclose(np.std(y), 0):
         return {
             "n": n,
             "f_stat": np.nan,
@@ -404,7 +404,7 @@ def _feature_correlations(time: np.ndarray, y: np.ndarray) -> Dict[str, float]:
     time = time[ok]
     y = y[ok]
 
-    if len(y) < 3 or np.allclose(np.std(time), 0) or np.allclose(np.std(y), 0):
+    if len(y) < 3 or np.all(time == time[0]) or np.allclose(np.std(y), 0):
         return {
             "pearson_r": np.nan,
             "spearman_r": np.nan,
