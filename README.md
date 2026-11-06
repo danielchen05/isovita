@@ -2,14 +2,21 @@
 
 **Interpretable compositional features associated with continuous covariates.**
 
-**Citation:** TBD.
-
 IsoVita learns one interpretable component balance per group, then tests its
 association with a continuous coordinate (`time`) using complementary **discrete** (changepoint) and
 **continuous** (spline) tests. Both use selection-aware time permutations and
 separate Benjamini-Hochberg correction. A group may be detected by either or both.
 `time` can represent age, exposure, pseudotime, or another continuous coordinate;
 negative values are supported.
+
+## Manuscript
+
+**Title:** *Learning interpretable compositional features associated with continuous covariates*  
+**Authors:** Xingyi Chen, Stephanie C. Hicks  
+**Venue:** bioRxiv (2026)  
+**DOI:** https://doi.org/10.64898/2026.11.04.764349
+
+If you use IsoVita, please cite the manuscript above.
 
 ## Installation
 
